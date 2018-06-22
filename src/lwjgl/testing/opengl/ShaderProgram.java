@@ -9,6 +9,7 @@ import static org.lwjgl.opengl.GL20.*;
  */
 public class ShaderProgram implements Disposable {
     private final int ID;
+    private boolean bound = false;
     private Shader[] shaders;
     private HashMap<String, Integer> uniformLocs = new HashMap<String, Integer>();
     
@@ -70,10 +71,12 @@ public class ShaderProgram implements Disposable {
     }
     
     public void bind() {
+        bound = true;
         glUseProgram(ID);
     }
     
     public void unbind() {
+        bound = false;
         glUseProgram(0);
     }
     
@@ -85,5 +88,11 @@ public class ShaderProgram implements Disposable {
         glDeleteProgram(this.ID);
     }
     
+    protected boolean getBound(){return bound;}
+    protected boolean bindAndGetBound(){
+        boolean wasBound = bound;
+        bind();
+        return wasBound;
+    }
     protected int getID(){return ID;}
 }

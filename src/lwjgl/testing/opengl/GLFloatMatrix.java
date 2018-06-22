@@ -7,8 +7,10 @@ package lwjgl.testing.opengl;
 
 import java.lang.reflect.Method;
 import java.nio.FloatBuffer;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import lwjgl.testing.math.MatrixMath;
 import org.lwjgl.BufferUtils;
 import static org.lwjgl.opengl.GL11.*;
 import org.lwjgl.opengl.GL20;
@@ -26,22 +28,22 @@ public class GLFloatMatrix implements Uniformable {
     
     @Override
     public void setUniform(ShaderProgram program, String varName) {
+        boolean wasBound = program.bindAndGetBound();
         //reflection used as a small ack to get around typing out a double switch statement
         String methodName = getUniformMethodName();
         Method method = null;
         try {
-            System.out.println("method name: " + methodName);
             method = GL20.class.getMethod(methodName, int.class, boolean.class, FloatBuffer.class);
             //count is 1 since there is one matrix
-            //not sure if transpose should be GL_FALSE or GL_TRUE
-            System.out.println("loc; " + Integer.toString(program.getUniformLocAndCache(varName)));
-            method.invoke(null, program.getUniformLocAndCache(varName), false, matToBuffer());
+            //transpose NEEDS to be TRUE
+            method.invoke(null, program.getUniformLocAndCache(varName), true, matToBuffer());
         } catch (Exception e) {
             //error handling a little sloppy here because what this accomplishes is very ridgid and fixed -- it
             //either works or it doesn't. ALso doesn't make more sense to catch it anywhere else.
             System.err.println("Error in GLFloatMatrix setUniform during reflection");
             e.printStackTrace();
         }
+        if(!wasBound) program.unbind();
     }
     
     private String getUniformMethodName() {
@@ -69,5 +71,10 @@ public class GLFloatMatrix implements Uniformable {
             }
         }
         return flat;
+    }
+    
+    
+    public String toString(){
+        return Arrays.deepToString(mat);
     }
 }

@@ -6,6 +6,7 @@
 package lwjgl.testing.input;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import org.lwjgl.glfw.Callbacks;
 
 import static org.lwjgl.glfw.GLFW.*;
@@ -14,12 +15,16 @@ import static org.lwjgl.glfw.GLFW.*;
  *
  * @author Owner
  */
-public class WindowInput {
+public abstract class WindowInput implements InputUpdatable {
     
     private final long WINDOW_ID;
-    private double mouseX, mouseY, scrollX, scrollY;
+    
+    private double scrollX, scrollY, mouseDx, mouseDy;
+    private float[] mousePos = new float[2];
     private HashSet<Integer> mousePresses = new HashSet<Integer>();
     private HashSet<Integer> pressedKeys = new HashSet<Integer>();
+    
+    
     
     public WindowInput(long windowId) {
         this.WINDOW_ID = windowId;
@@ -29,56 +34,63 @@ public class WindowInput {
     private void setCallbacks() {
         glfwSetMouseButtonCallback(WINDOW_ID, (long window, int button, int action, int mods) ->{
             assert (window == WINDOW_ID);
-            glfwMouseButtonCallback(button, action, mods);   
+            notifyMouseButton(button, action, mods);//glfwMouseButtonCallback(button, action, mods);   
         });
         
         glfwSetCursorPosCallback(WINDOW_ID, (long window, double xpos, double ypos) -> {
             assert (window == WINDOW_ID);
-            glfwCursorPosCallback(xpos, ypos);
+            notifyCursorPos(xpos, ypos);
         });
         
         glfwSetKeyCallback(WINDOW_ID, (long window, int key, int scancode, int action, int mods) -> {
             assert (window == WINDOW_ID);
-            glfwKeyCallback(key, scancode, action, mods);
+            notifyKeyPress(key, scancode, action, mods);
         });
         
         glfwSetScrollCallback(WINDOW_ID, (long window, double xOffset, double yOffset) -> {
             assert (window == WINDOW_ID);
-            glfwScrollCallback(xOffset, yOffset);
+            notifyScroll(xOffset, yOffset);
         });
     }
     
-    
-    private void glfwCursorPosCallback(double xPos, double yPos) {
-        this.mouseX = xPos;
-        this.mouseY = yPos;
+    /*implementation handles cursor movement*/
+    private void notifyCursorPos(double xPos, double yPos){
+        mousePos[0] = (float)xPos;
+        mousePos[1] = (float)yPos;
     }
     
-    private void glfwScrollCallback(double xOffset, double yOffset) {
+    /* implementation handles mouse scrolling and what to do*/
+    private void notifyScroll(double xOffset, double yOffset){
         this.scrollX = xOffset;
         this.scrollY = yOffset;
     }
     
     
-    private void glfwMouseButtonCallback(int button, int action, int mods) {
-        //not sure if this properly autoboxes button -- if messing up, change to new Integer(button)
+    /*implementation handles mouse button input*/
+    private void notifyMouseButton(int button, int action, int mods){
         if(action == GLFW_PRESS) {
             mousePresses.add(button);
         } else {
             mousePresses.remove(button);
         }
     }
+        
     
-    private void glfwKeyCallback(int key, int scancode, int action, int mods) {
+    /*
+    handles keypresses
+    */
+    private void notifyKeyPress(int key, int scancode, int action, int mods){
         if(action == GLFW_PRESS) {
             pressedKeys.add(key);
-        } else {
-            //handles both repeat and release (just to make sure no keys "linger" in cache)
+        } else if (action == GLFW_RELEASE) {
             pressedKeys.remove(key);
-            if (action == GLFW_REPEAT) {
-                //handle repeat keys here
-            }
+        } else {
+            //for repeat
         }
     }
+    
+    protected Iterator<Integer> getPressedKeyIterator() {return pressedKeys.iterator();}
+    protected float[] getMousePos(){return (float[])mousePos.clone();}
+    protected long getWindowId(){return WINDOW_ID;}
     
 }

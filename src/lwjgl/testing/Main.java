@@ -5,14 +5,16 @@ import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import lwjgl.testing.input.FirstPersonCameraInput;
 import lwjgl.testing.input.WindowInput;
+import lwjgl.testing.math.MatrixMath;
 import lwjgl.testing.opengl.IndicesBufferObject;
 import lwjgl.testing.opengl.CoordsBufferObject;
 import lwjgl.testing.opengl.BufferObject;
 import lwjgl.testing.opengl.GLDebug;
 import lwjgl.testing.opengl.GLFloatMatrix;
 import lwjgl.testing.opengl.GLTexture;
-import lwjgl.testing.opengl.MatrixBuilder;
+import lwjgl.testing.math.MatrixBuilder;
 import lwjgl.testing.opengl.ShaderProgram;
 import lwjgl.testing.opengl.VAO;
 import org.lwjgl.BufferUtils;
@@ -43,6 +45,7 @@ public class Main {
         GLFWErrorCallback.createPrint(System.err).set();
         initGLFW();
         setWindowHints();
+        
     }
     private static GLFloatMatrix projMat;
     private static GLTexture texture;
@@ -53,7 +56,9 @@ public class Main {
     //private static int vaoId;//, vboId;
     private static long windowId;
     private static ShaderProgram shaderProgram;
-    private static WindowInput windowInput;
+    private static FirstPersonCameraInput fpInput;
+    private static long lastFrameNanoTime = System.nanoTime();
+    
     
     /*
     Following this tutorial series: https://goharsha.com/lwjgl-tutorial-series/
@@ -74,7 +79,7 @@ public class Main {
         
         createWindow();
         doRenderPrereqs();
-        windowInput = new WindowInput(windowId);
+        fpInput = new FirstPersonCameraInput(windowId);
         initProgram();
         prepareProgram();
         startRendering();
@@ -90,6 +95,7 @@ public class Main {
         GL.createCapabilities();
         
         glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_ALWAYS); 
         glDisable(GL_BLEND);
         
         glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
@@ -99,8 +105,8 @@ public class Main {
     }
 
     private static void createWindow() {
-        windowId = glfwCreateWindow(640, 480, "hello", NULL, NULL);//first null specifies monitor doesn't matter, second says no shared context between windows (windows don't talk to each other/mirror each other)
-
+        windowId = glfwCreateWindow(1024, 768, "hello", NULL, NULL);//first null specifies monitor doesn't matter, second says no shared context between windows (windows don't talk to each other/mirror each other)
+        glfwSetInputMode(windowId, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
         if (windowId == NULL) {
             System.err.println("Error creating window");
             System.exit(1);
@@ -144,10 +150,10 @@ public class Main {
         vao = new VAO(3);
         
         float[][] vertices = new float[][] {
-            {-0.5f, 0.5f, 0f},
-            {-0.5f, -0.5f, 0f},
-            {0.5f, -0.5f, 0f},
-            {0.5f, 0.5f, 0f}
+            {-0.5f, 0.5f, 3f},
+            {-0.5f, -0.5f, 3f},
+            {0.5f, -0.5f, 3f},
+            {0.5f, 0.5f, 3f}
         };
         
         float[][] texCoords = new float[][] {
@@ -162,7 +168,7 @@ public class Main {
             {3,1,2}
         };
         
-        projMat = MatrixBuilder.createOrthoMatrix(-1f, 1f, -1f, 1f, -1f, 1f);
+        projMat = MatrixBuilder.createGLPerspectiveMatrix(90f, 10f, 1f);//MatrixBuilder.createGLOrthoMatrix(-1f, 1f, -1f, 1f, -1f, 1f);////
         projMat.setUniform(shaderProgram, "projMat");
         vbo = new CoordsBufferObject(vertices, false, 0, 0);
         tbo = new CoordsBufferObject(texCoords, false, 0, 0);
@@ -199,6 +205,7 @@ public class Main {
     }
     
     private static void render() {
+        
         //clears both the color buffer and depth buffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
@@ -207,8 +214,12 @@ public class Main {
         texture.bind();
         shaderProgram.setUniform("textureSampler", GL_TEXTURE0);
         vao.bind();
-        //vbo.points[1][0] += (float)(0.1*(Math.random()-0.5));
         
+        fpInput.update(System.nanoTime() - lastFrameNanoTime);
+        
+        lastFrameNanoTime = System.nanoTime();
+        projMat.mat = MatrixMath.multiply(MatrixBuilder.createPerspectiveMatrix(90, 1f, 10f), fpInput.getLookAtMat());
+        projMat.setUniform(shaderProgram, "projMat");
         
         vbo.bufferData(GL_STATIC_DRAW);
         
@@ -220,7 +231,6 @@ public class Main {
         vao.unbind();
         texture.unbind();
         shaderProgram.unbind();
-        
     }
     
     private static void dispose(){
